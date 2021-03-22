@@ -12,8 +12,7 @@ export default function Account() {
     
     useFocusEffect (
       useCallback(() => {
-          const user = getCurrentUser()
-          console.log(user)
+          const user = getCurrentUser()         
           user ? setLogin(true) : setLogin(false)
       }, [])
   )
