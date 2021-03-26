@@ -111,3 +111,205 @@ export const uploadImage = async(image, path, name) => {
     return result
 }
 
+export const addDocumentWithoutId = async(collection, data) => {
+    const result = { statusResponse: true, error: null }
+    try {
+        await db.collection(collection).add(data)
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const getRestaurants = async(limitRestuarants) => {
+    const result = { statusResponse: true, error: null, restaurants: [], startRestaurant: null }
+    try {
+        const response = await db.collection('restaurants').orderBy('createAt','desc').limit(limitRestuarants).get()
+        if(response.docs.length > 0){
+            result.startRestaurant = response.docs.length -1
+        }
+        response.forEach((docs) => {
+            const restaurnat = docs.data()
+            restaurnat.id = docs.id
+            result.restaurants.push(restaurnat)
+        })
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    
+    return result  
+}   
+export const getMoreRestaurants = async(limitRestaurants, startRestaurant) => {
+    const result = { statusResponse: true, error: null, restaurants: [], startRestaurant: null }
+    try {
+        const response = await db
+            .collection("restaurants")
+            .orderBy("createAt", "desc")
+            .startAfter(startRestaurant.data().createAt)
+            .limit(limitRestaurants)
+            .get()
+        if (response.docs.length > 0) {
+            result.startRestaurant = response.docs[response.docs.length - 1]
+        }
+        response.forEach((doc) => {
+            const restaurant = doc.data()
+            restaurant.id = doc.id
+            result.restaurants.push(restaurant)
+        })
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const getDocumentById = async(collection, id) => {
+    const result = { statusResponse: true, error: null, document: null }
+    try {
+        const response = await db.collection(collection).doc(id).get()
+        result.document = response.data()
+        result.document.id = response.id
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const updateDocument = async(collection, id, data) => {
+    const result = { statusResponse: true, error: null }
+    try {
+        await db.collection(collection).doc(id).update(data)
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const getRestaurantReviews = async(id) => {
+    const result = { statusResponse: true, error: null, reviews: [] }
+    try {
+        const response = await db
+            .collection("reviews")
+            .where("idRestaurant", "==", id)
+            .get()
+        response.forEach((doc) => {
+            const review = doc.data()
+            review.id = doc.id
+            result.reviews.push(review)
+        })
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result
+}
+
+export const getIsFavorite = async(idRestaurant) => {
+    const result = { statusResponse: true, error: null, isFavorite: false }
+    try {
+        const response = await db
+            .collection("favorites")
+            .where("idRestaurant", "==", idRestaurant)
+            .where("idUser", "==", getCurrentUser().uid)
+            .get()
+        result.isFavorite = response.docs.length > 0
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const deleteFavorite = async(idRestaurant) => {
+    const result = { statusResponse: true, error: null }
+    try {
+        const response = await db
+            .collection("favorites")
+            .where("idRestaurant", "==", idRestaurant)
+            .where("idUser", "==", getCurrentUser().uid)
+            .get()
+        response.forEach(async(doc) => {
+            const favoriteId = doc.id
+            await db.collection("favorites").doc(favoriteId).delete()
+        })    
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const getFavorites = async() => {
+    const result = { statusResponse: true, error: null, favorites: [] }
+    try {
+        
+        const response = await db
+            .collection("favorites")
+            .where("idUser", "==", getCurrentUser().uid)
+            .get()
+            
+            await Promise.all(
+                response.forEach(async(doc) => {
+                    const id = doc.cP.proto.fields.idRestaurant.stringValue
+                    const restaurant = await getDocumentById("restaurants", id)
+                    
+                    if (restaurant.statusResponse) {
+                        console.log('DOCUMENTO:::::::::::::::::::::::::::',restaurant.document);
+                        result.favorites.push(restaurant.document)
+                    }
+                }) 
+            )   
+            console.log('favorite:::::::::::::::::::::::::::',result.favorites);
+            
+        /*await Promise.all(
+            map(response.docs, async(doc) => {                
+                const favorite = doc.data()                
+                const restaurant = await getDocumentById("restaurants", favorite.idRestaurant)
+                if (restaurant.statusResponse) {
+                    result.favorites.push(restaurant.document)
+                }
+            })
+        )*/
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    
+    return result     
+}
+
+export const getTopRestaurants = async(limit) => {
+    const result = { statusResponse: true, error: null, restaurants: [] }
+    try {
+        const response = await db
+            .collection("restaurants")
+            .orderBy("rating", "desc")
+            .limit(limit)
+            .get()
+        response.forEach((doc) => {
+            const restaurant = doc.data()
+            restaurant.id = doc.id
+            result.restaurants.push(restaurant)
+        })
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
+export const searchRestaurants = async(criteria) => {
+    const result = { statusResponse: true, error: null, restaurants: [] }
+    try {
+        result.restaurants = await fireSQL.query(`SELECT * FROM restaurants WHERE name LIKE '${criteria}%'`)
+    } catch (error) {
+        result.statusResponse = false
+        result.error = error
+    }
+    return result     
+}
+
